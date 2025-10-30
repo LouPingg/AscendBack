@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
@@ -34,7 +34,13 @@ export async function login(req, res) {
     const user = await User.findOne({ nickname });
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    // 🟡 AJOUTE CES 2 LIGNES TEMPORAIRES
+    console.log("🔹 Mot de passe reçu:", password);
+    console.log("🔹 Hash en base:", user.password);
+
     const match = await bcrypt.compare(password, user.password);
+    console.log("🔹 Résultat comparaison:", match);
+
     if (!match) return res.status(401).json({ message: "Invalid password" });
 
     const token = jwt.sign(
