@@ -1,5 +1,4 @@
 import express from "express";
-import multer from "multer";
 import {
   createAlbum,
   getAllAlbums,
@@ -9,18 +8,18 @@ import {
   getPhotosByAlbum,
 } from "../controllers/galleryController.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
+import upload from "../middleware/upload.js"; // 🟢 ajout ici
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
 
-// Albums
-router.get("/albums", getAllAlbums);
+/* ========= ALBUMS ========= */
 router.post("/albums", verifyToken, createAlbum);
+router.get("/albums", getAllAlbums);
 router.delete("/albums/:id", verifyToken, deleteAlbum);
 
-// Photos
+/* ========= PHOTOS ========= */
+router.post("/photos", verifyToken, upload.single("image"), uploadPhoto); // 🟢 ajoute Multer ici
 router.get("/photos/:albumId", getPhotosByAlbum);
-router.post("/photos", verifyToken, upload.single("image"), uploadPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);
 
 export default router;

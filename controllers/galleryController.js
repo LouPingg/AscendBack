@@ -1,16 +1,6 @@
 import Album from "../models/Album.js";
 import Photo from "../models/Photo.js";
-import cloudinary from "cloudinary";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-// === Cloudinary config ===
-cloudinary.v2.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_API_SECRET,
-});
+import cloudinary from "../config/cloudinary.js";
 
 /* ========= ALBUMS ========= */
 
@@ -52,8 +42,15 @@ export async function deleteAlbum(req, res) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    await Photo.deleteMany({ albumId: id }); // supprime les photos liées
+    // Supprimer les photos Cloudinary liées
+    const photos = await Photo.find({ albumId: id });
+    for (const photo of photos) {
+      if (photo.publicId) await cloudinary.uploader.destroy(photo.publicId);
+    }
+
+    await Photo.deleteMany({ albumId: id });
     await album.deleteOne();
+
     res.json({ message: "Album deleted" });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete album" });
@@ -69,8 +66,10 @@ export async function uploadPhoto(req, res) {
     const file = req.file; // multer
     if (!file) return res.status(400).json({ message: "No file uploaded" });
 
-    const result = await cloudinary.v2.uploader.upload(file.path, {
+    // Upload vers Cloudinary
+    const result = await cloudinary.uploader.upload(file.path, {
       folder: "ascend-gallery",
+      resource_type: "image",
     });
 
     const photo = await Photo.create({
@@ -102,8 +101,9 @@ export async function deletePhoto(req, res) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    if (photo.publicId) await cloudinary.v2.uploader.destroy(photo.publicId);
+    if (photo.publicId) await cloudinary.uploader.destroy(photo.publicId);
     await photo.deleteOne();
+
     res.json({ message: "Photo deleted" });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete photo" });
