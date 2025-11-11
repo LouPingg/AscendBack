@@ -1,28 +1,25 @@
 import Event from "../models/Event.js";
 import cloudinary from "../config/cloudinary.js";
 
-// === Créer un événement ===
+/* Create */
 export async function createEvent(req, res) {
   try {
     const { title, description, startAt, endAt } = req.body;
     let imageUrl = null;
-
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
+      const up = await cloudinary.uploader.upload(req.file.path, {
         folder: "ascend-events",
       });
-      imageUrl = result.secure_url;
+      imageUrl = up.secure_url;
     }
-
     const event = await Event.create({
       title,
       description,
       startAt,
       endAt,
       imageUrl,
-      createdBy: req.user._id, // 👈 on relie à l’utilisateur connecté
+      createdBy: req.user._id,
     });
-
     res.status(201).json(event);
   } catch (err) {
     console.error("Create event error:", err);
@@ -30,28 +27,37 @@ export async function createEvent(req, res) {
   }
 }
 
-// === Récupérer tous les événements (public) ===
+/* Read (public) – only future events, sorted ascending */
 export async function getAllEvents(req, res) {
   try {
     const now = new Date();
-    const events = await Event.find({ endAt: { $gte: now } }).sort({
-      startAt: 1,
-    });
+    const events = await Event.find({ endAt: { $gte: now } })
+      .populate("createdBy", "nickname role")
+      .sort({ startAt: 1 });
     res.json(events);
-  } catch {
+  } catch (err) {
+    console.error("Get events error:", err);
     res.status(500).json({ message: "Failed to fetch events" });
   }
 }
-// === Supprimer un événement (admin ou propriétaire) ===
+
+/* Delete (owner or admin) – check inside */
 export async function deleteEvent(req, res) {
   try {
-    const event = req.doc; // défini par le middleware isOwnerOrAdmin
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    const isOwner = event.createdBy?.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     if (event.imageUrl) {
       const publicId = event.imageUrl.split("/").pop().split(".")[0];
       await cloudinary.uploader.destroy(`ascend-events/${publicId}`);
     }
     await event.deleteOne();
-    res.json({ message: "Event deleted successfully" });
+    res.json({ message: "Event deleted" });
   } catch (err) {
     console.error("Delete event error:", err);
     res.status(500).json({ message: "Failed to delete event" });

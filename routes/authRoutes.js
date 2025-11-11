@@ -13,11 +13,11 @@ import { verifyToken, isAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* ========= PUBLIC ========= */
+// Public
 router.post("/signup", signup);
 router.post("/login", login);
 
-/* ========= ADMIN ========= */
+// Admin
 router.post("/authorize", verifyToken, isAdmin, authorizeUser);
 router.get("/whitelist", verifyToken, isAdmin, getWhitelist);
 router.delete(

@@ -2,14 +2,11 @@ import Album from "../models/Album.js";
 import Photo from "../models/Photo.js";
 import cloudinary from "../config/cloudinary.js";
 
-// === Créer un album ===
+/* === Albums === */
 export async function createAlbum(req, res) {
   try {
     const { title } = req.body;
-    const album = await Album.create({
-      title,
-      createdBy: req.user._id, // 👈 l’auteur
-    });
+    const album = await Album.create({ title, createdBy: req.user._id });
     res.status(201).json(album);
   } catch (err) {
     console.error("Create album error:", err);
@@ -17,7 +14,6 @@ export async function createAlbum(req, res) {
   }
 }
 
-// === Lister tous les albums ===
 export async function getAllAlbums(req, res) {
   try {
     const albums = await Album.find().populate("createdBy", "nickname role");
@@ -28,57 +24,98 @@ export async function getAllAlbums(req, res) {
   }
 }
 
-// === Supprimer un album (admin ou propriétaire) ===
 export async function deleteAlbum(req, res) {
   try {
-    const album = req.doc; // défini par le middleware
+    const album = await Album.findById(req.params.id);
+    if (!album) return res.status(404).json({ message: "Album not found" });
+
+    const isOwner = album.createdBy?.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin")
+      return res.status(403).json({ message: "Access denied" });
+
     const photos = await Photo.find({ albumId: album._id });
-
     for (const p of photos) {
-      await cloudinary.uploader.destroy(p.publicId);
+      if (p.publicId) await cloudinary.uploader.destroy(p.publicId);
     }
-
     await Photo.deleteMany({ albumId: album._id });
     await album.deleteOne();
-
-    res.json({ message: "Album deleted successfully" });
+    res.json({ message: "Album deleted" });
   } catch (err) {
     console.error("Delete album error:", err);
     res.status(500).json({ message: "Failed to delete album" });
   }
 }
 
-// === Ajouter une photo à un album ===
-export async function addPhoto(req, res) {
+/* === Photos === */
+export async function uploadPhoto(req, res) {
   try {
-    const { albumId } = req.params;
+    const { albumId } = req.body;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
+    const album = await Album.findById(albumId);
+    if (!album) return res.status(404).json({ message: "Album not found" });
+
+    // owner or admin
+    const isOwner = album.createdBy?.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin")
+      return res.status(403).json({ message: "Access denied" });
+
+    const up = await cloudinary.uploader.upload(req.file.path, {
       folder: "ascend-gallery",
     });
 
     const photo = await Photo.create({
       albumId,
-      imageUrl: result.secure_url,
-      publicId: result.public_id,
-      createdBy: req.user._id, // 👈 auteur de la photo
+      imageUrl: up.secure_url,
+      publicId: up.public_id,
+      createdBy: req.user._id,
     });
+
+    // set cover if none
+    if (!album.coverUrl) {
+      album.coverUrl = up.secure_url;
+      await album.save();
+    }
 
     res.status(201).json(photo);
   } catch (err) {
-    console.error("Add photo error:", err);
+    console.error("Upload photo error:", err);
     res.status(500).json({ message: "Failed to upload photo" });
   }
 }
 
-// === Supprimer une photo (admin ou propriétaire) ===
+export async function getPhotosByAlbum(req, res) {
+  try {
+    const { albumId } = req.params;
+    const photos = await Photo.find({ albumId });
+    res.json(photos);
+  } catch (err) {
+    console.error("Get photos error:", err);
+    res.status(500).json({ message: "Failed to fetch photos" });
+  }
+}
+
 export async function deletePhoto(req, res) {
   try {
-    const photo = req.doc;
-    await cloudinary.uploader.destroy(photo.publicId);
+    const photo = await Photo.findById(req.params.id);
+    if (!photo) return res.status(404).json({ message: "Photo not found" });
+
+    const isOwner = photo.createdBy?.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin")
+      return res.status(403).json({ message: "Access denied" });
+
+    if (photo.publicId) await cloudinary.uploader.destroy(photo.publicId);
     await photo.deleteOne();
-    res.json({ message: "Photo deleted successfully" });
+
+    // if it was cover, refresh album cover
+    const album = await Album.findById(photo.albumId);
+    if (album && album.coverUrl === photo.imageUrl) {
+      const next = await Photo.findOne({ albumId: album._id }).sort({ _id: 1 });
+      album.coverUrl = next ? next.imageUrl : null;
+      await album.save();
+    }
+
+    res.json({ message: "Photo deleted" });
   } catch (err) {
     console.error("Delete photo error:", err);
     res.status(500).json({ message: "Failed to delete photo" });

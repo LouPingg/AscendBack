@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-/* ========= SIGNUP ========= */
+/* ===== Signup (whitelist only) ===== */
 export async function signup(req, res) {
   try {
     const { nickname, password } = req.body;
@@ -22,22 +22,21 @@ export async function signup(req, res) {
   }
 }
 
-/* ========= LOGIN ========= */
+/* ===== Login ===== */
 export async function login(req, res) {
   try {
     const { nickname, password } = req.body;
     const user = await User.findOne({ nickname });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ message: "Invalid password" });
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(401).json({ message: "Invalid password" });
 
     const token = jwt.sign(
       { userId: user._id, role: user.role, nickname: user.nickname },
       process.env.JWT_SECRET,
       { expiresIn: "4h" }
     );
-
     res.json({ token, nickname: user.nickname, role: user.role });
   } catch (err) {
     console.error("Login error:", err);
@@ -45,7 +44,7 @@ export async function login(req, res) {
   }
 }
 
-/* ========= ADMIN: AUTHORIZE USER ========= */
+/* ===== Admin: Whitelist ===== */
 export async function authorizeUser(req, res) {
   try {
     const { nickname } = req.body;
@@ -69,7 +68,6 @@ export async function authorizeUser(req, res) {
   }
 }
 
-/* ========= ADMIN: GET WHITELIST ========= */
 export async function getWhitelist(req, res) {
   try {
     const list = await User.find({ authorized: true }).select("nickname");
@@ -80,14 +78,12 @@ export async function getWhitelist(req, res) {
   }
 }
 
-/* ========= ADMIN: REMOVE FROM WHITELIST ========= */
 export async function removeFromWhitelist(req, res) {
   try {
     const { nickname } = req.params;
     const user = await User.findOne({ nickname });
     if (!user)
       return res.status(404).json({ message: "User not found in whitelist" });
-
     user.authorized = false;
     await user.save();
     res.json({ message: `${nickname} removed from whitelist` });
@@ -97,17 +93,14 @@ export async function removeFromWhitelist(req, res) {
   }
 }
 
-/* ========= ADMIN: RESET PASSWORD ========= */
+/* ===== Admin: Users ===== */
 export async function resetPassword(req, res) {
   try {
     const { nickname, newPassword } = req.body;
     const user = await User.findOne({ nickname });
     if (!user) return res.status(404).json({ message: "User not found" });
-
-    const hashed = await bcrypt.hash(newPassword, 10);
-    user.password = hashed;
+    user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
-
     res.json({ message: `Password for ${nickname} has been reset` });
   } catch (err) {
     console.error("Reset password error:", err);
@@ -115,7 +108,6 @@ export async function resetPassword(req, res) {
   }
 }
 
-/* ========= ADMIN: GET ALL USERS ========= */
 export async function getAllUsers(req, res) {
   try {
     const users = await User.find().select("nickname role authorized");
@@ -126,7 +118,6 @@ export async function getAllUsers(req, res) {
   }
 }
 
-/* ========= ADMIN: DELETE USER ========= */
 export async function deleteUser(req, res) {
   try {
     const { id } = req.params;
