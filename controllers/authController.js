@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
+/* ========= SIGNUP ========= */
 export async function signup(req, res) {
   try {
     const { nickname, password } = req.body;
@@ -16,10 +17,12 @@ export async function signup(req, res) {
     await user.save();
     res.status(201).json({ message: "Account created" });
   } catch (err) {
+    console.error("Signup error:", err);
     res.status(500).json({ message: "Signup failed" });
   }
 }
 
+/* ========= LOGIN ========= */
 export async function login(req, res) {
   try {
     const { nickname, password } = req.body;
@@ -34,47 +37,39 @@ export async function login(req, res) {
       process.env.JWT_SECRET,
       { expiresIn: "4h" }
     );
+
     res.json({ token, nickname: user.nickname, role: user.role });
-  } catch {
+  } catch (err) {
+    console.error("Login error:", err);
     res.status(500).json({ message: "Login failed" });
   }
 }
 
+/* ========= ADMIN: AUTHORIZE USER ========= */
 export async function authorizeUser(req, res) {
   try {
     const { nickname } = req.body;
     let user = await User.findOne({ nickname });
-    if (!user)
+    if (!user) {
       user = await User.create({
         nickname,
         password: "temp",
         authorized: true,
+        role: "user",
       });
-    else {
+    } else {
       user.authorized = true;
       if (!user.password || user.password === "") user.password = "temp";
       await user.save();
     }
     res.json({ message: `${nickname} authorized` });
-  } catch {
+  } catch (err) {
+    console.error("Authorize error:", err);
     res.status(500).json({ message: "Error authorizing user" });
   }
 }
 
-// === ADMIN: supprimer un utilisateur ===
-export async function deleteUser(req, res) {
-  try {
-    const { id } = req.params;
-    const user = await User.findByIdAndDelete(id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ message: "User deleted successfully" });
-  } catch (err) {
-    console.error("Delete user error:", err);
-    res.status(500).json({ message: "Failed to delete user" });
-  }
-}
-
-// === ADMIN: obtenir la whitelist (utilisateurs autorisés) ===
+/* ========= ADMIN: GET WHITELIST ========= */
 export async function getWhitelist(req, res) {
   try {
     const list = await User.find({ authorized: true }).select("nickname");
@@ -85,32 +80,61 @@ export async function getWhitelist(req, res) {
   }
 }
 
-// === ADMIN: retirer un utilisateur de la whitelist ===
+/* ========= ADMIN: REMOVE FROM WHITELIST ========= */
 export async function removeFromWhitelist(req, res) {
   try {
     const { nickname } = req.params;
     const user = await User.findOne({ nickname });
-
     if (!user)
       return res.status(404).json({ message: "User not found in whitelist" });
 
     user.authorized = false;
     await user.save();
-
     res.json({ message: `${nickname} removed from whitelist` });
   } catch (err) {
-    console.error("Remove from whitelist error:", err);
+    console.error("Remove whitelist error:", err);
     res.status(500).json({ message: "Failed to remove from whitelist" });
   }
 }
 
-// === ADMIN: obtenir tous les utilisateurs ===
+/* ========= ADMIN: RESET PASSWORD ========= */
+export async function resetPassword(req, res) {
+  try {
+    const { nickname, newPassword } = req.body;
+    const user = await User.findOne({ nickname });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    await user.save();
+
+    res.json({ message: `Password for ${nickname} has been reset` });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ message: "Failed to reset password" });
+  }
+}
+
+/* ========= ADMIN: GET ALL USERS ========= */
 export async function getAllUsers(req, res) {
   try {
     const users = await User.find().select("nickname role authorized");
     res.json(users);
   } catch (err) {
-    console.error("Get all users error:", err);
+    console.error("Get users error:", err);
     res.status(500).json({ message: "Failed to fetch users" });
+  }
+}
+
+/* ========= ADMIN: DELETE USER ========= */
+export async function deleteUser(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndDelete(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ message: "Failed to delete user" });
   }
 }
