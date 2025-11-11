@@ -11,13 +11,11 @@ import {
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ storage: multer.memoryStorage() });
 
-// 🟢 Routes publiques
 router.get("/albums", getAllAlbums);
 router.get("/albums/:albumId/photos", getPhotosByAlbum);
 
-// 🔒 Routes protégées
 router.post("/albums", verifyToken, createAlbum);
 router.delete("/albums/:id", verifyToken, deleteAlbum);
 router.post("/photos", verifyToken, upload.single("file"), uploadPhoto);

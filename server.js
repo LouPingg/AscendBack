@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
 
 import authRoutes from "./routes/authRoutes.js";
-import eventRoutes from "./routes/eventRoutes.js";
 import galleryRoutes from "./routes/galleryRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 
@@ -20,14 +19,10 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => {
-  res.send("✅ Ascend backend running!");
-});
+app.get("/", (req, res) => res.send("✅ Ascend backend running!"));
 
 app.use("/api/auth", authRoutes);
-
 app.use("/api/gallery", galleryRoutes);
-app.use("/api/events", eventRoutes);
 app.use("/api/admin", adminRoutes);
 
 const PORT = process.env.PORT || 5000;

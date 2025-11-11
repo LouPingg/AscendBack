@@ -19,10 +19,3 @@ export function isAdmin(req, res, next) {
     return res.status(403).json({ message: "Admin only" });
   next();
 }
-
-export function isOwnerOrAdmin(req, res, next) {
-  if (req.user.role === "admin" || req.user.userId === req.params.userId) {
-    return next();
-  }
-  return res.status(403).json({ message: "Not allowed" });
-}
