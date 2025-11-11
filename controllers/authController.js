@@ -60,3 +60,16 @@ export async function authorizeUser(req, res) {
     res.status(500).json({ message: "Error authorizing user" });
   }
 }
+
+// === ADMIN: supprimer un utilisateur ===
+export async function deleteUser(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndDelete(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ message: "Failed to delete user" });
+  }
+}
