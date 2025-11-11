@@ -85,6 +85,25 @@ export async function getWhitelist(req, res) {
   }
 }
 
+// === ADMIN: retirer un utilisateur de la whitelist ===
+export async function removeFromWhitelist(req, res) {
+  try {
+    const { nickname } = req.params;
+    const user = await User.findOne({ nickname });
+
+    if (!user)
+      return res.status(404).json({ message: "User not found in whitelist" });
+
+    user.authorized = false;
+    await user.save();
+
+    res.json({ message: `${nickname} removed from whitelist` });
+  } catch (err) {
+    console.error("Remove from whitelist error:", err);
+    res.status(500).json({ message: "Failed to remove from whitelist" });
+  }
+}
+
 // === ADMIN: obtenir tous les utilisateurs ===
 export async function getAllUsers(req, res) {
   try {
