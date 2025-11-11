@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import {
   createAlbum,
   getAllAlbums,
@@ -8,18 +9,18 @@ import {
   getPhotosByAlbum,
 } from "../controllers/galleryController.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
-import upload from "../middleware/upload.js"; // 🟢 ajout ici
 
 const router = express.Router();
+const upload = multer({ dest: "uploads/" });
 
-/* ========= ALBUMS ========= */
-router.post("/albums", verifyToken, createAlbum);
+// 🟢 Routes publiques
 router.get("/albums", getAllAlbums);
-router.delete("/albums/:id", verifyToken, deleteAlbum);
+router.get("/albums/:albumId/photos", getPhotosByAlbum);
 
-/* ========= PHOTOS ========= */
-router.post("/photos", verifyToken, upload.single("image"), uploadPhoto); // 🟢 ajoute Multer ici
-router.get("/photos/:albumId", getPhotosByAlbum);
+// 🔒 Routes protégées
+router.post("/albums", verifyToken, createAlbum);
+router.delete("/albums/:id", verifyToken, deleteAlbum);
+router.post("/photos", verifyToken, upload.single("file"), uploadPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);
 
 export default router;
