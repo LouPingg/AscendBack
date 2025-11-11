@@ -10,10 +10,10 @@ import {
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-// Public
+/* ========= Routes publiques ========= */
 router.get("/", getAllEvents);
 
-// Admin only
+/* ========= Routes admin ========= */
 router.post("/", verifyToken, isAdmin, upload.single("image"), createEvent);
 router.delete("/:id", verifyToken, isAdmin, deleteEvent);
 
