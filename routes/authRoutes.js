@@ -9,11 +9,11 @@ import { verifyToken, isAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Public routes
+// === Public ===
 router.post("/signup", signup);
 router.post("/login", login);
 
-// Admin routes
+// === Admin ===
 router.post("/reset-password", verifyToken, isAdmin, resetPassword);
 router.get("/users", verifyToken, isAdmin, getAllUsers);
 
