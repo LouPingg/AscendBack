@@ -2,48 +2,35 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-/* ========= SIGNUP (Whitelisted only) ========= */
+/* ========= SIGNUP (whitelist only) =========
+   Pré-requis: une entrée User avec { authorized: true, password: "temp" } */
 export async function signup(req, res) {
   try {
     const { nickname, password } = req.body;
-
-    // Vérifie si le pseudo existe
     const user = await User.findOne({ nickname });
-    if (!user || !user.authorized) {
+
+    if (!user) {
+      return res
+        .status(403)
+        .json({ message: "Nickname not found in whitelist." });
+    }
+    if (!user.authorized) {
       return res
         .status(403)
         .json({ message: "You are not authorized to create an account." });
     }
-
-    // Vérifie si le compte est déjà créé
     if (user.password !== "temp") {
-      return res
-        .status(400)
-        .json({ message: "Account already created or password already set." });
+      return res.status(400).json({ message: "Account already created." });
     }
 
-    // Hash du mot de passe
     const hashed = await bcrypt.hash(password, 10);
     user.password = hashed;
     await user.save();
 
-    // Création du token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role, nickname: user.nickname },
-      process.env.JWT_SECRET,
-      { expiresIn: "4h" }
-    );
-
-    res
-      .status(201)
-      .json({
-        message: "Account created successfully",
-        token,
-        role: user.role,
-      });
+    return res.status(201).json({ message: "Account created successfully." });
   } catch (err) {
     console.error("Signup error:", err);
-    res.status(500).json({ message: "Signup failed" });
+    return res.status(500).json({ message: "Signup failed" });
   }
 }
 
@@ -51,26 +38,23 @@ export async function signup(req, res) {
 export async function login(req, res) {
   try {
     const { nickname, password } = req.body;
-
     const user = await User.findOne({ nickname });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Vérifie si le compte est autorisé
-    if (!user.authorized)
+    if (!user.authorized) {
       return res.status(403).json({ message: "User not authorized." });
+    }
 
-    // Vérifie le mot de passe
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: "Invalid password" });
 
-    // Génère un token
     const token = jwt.sign(
       { userId: user._id, role: user.role, nickname: user.nickname },
       process.env.JWT_SECRET,
       { expiresIn: "4h" }
     );
 
-    res.json({
+    return res.json({
       token,
       role: user.role,
       nickname: user.nickname,
@@ -78,26 +62,28 @@ export async function login(req, res) {
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Login failed" });
+    return res.status(500).json({ message: "Login failed" });
   }
 }
 
-/* ========= AUTHORIZE USER (Admin whitelist) ========= */
+/* ========= AUTHORIZE USER (Admin whitelist) =========
+   - Active authorized=true si l'utilisateur existe
+   - S'il n'existe pas, crée une entrée pré-autorisée avec password:"temp" */
 export async function authorizeUser(req, res) {
   try {
     const { nickname } = req.body;
+    let user = await User.findOne({ nickname });
 
-    // Vérifie si un utilisateur existe déjà
-    const existing = await User.findOne({ nickname });
-
-    if (existing) {
-      // Si le compte existe déjà, on active simplement son autorisation
-      existing.authorized = true;
-      await existing.save();
+    if (user) {
+      user.authorized = true;
+      // S'il n'a pas encore de mot de passe, on force "temp" pour permettre le signup
+      if (!user.password || user.password === "") {
+        user.password = "temp";
+      }
+      await user.save();
       return res.json({ message: `${nickname} is now authorized.` });
     }
 
-    // Sinon, on crée une entrée temporaire "pré-autorisée"
     await User.create({
       nickname,
       password: "temp",
@@ -105,18 +91,45 @@ export async function authorizeUser(req, res) {
       role: "user",
     });
 
-    res.json({ message: `${nickname} added to whitelist.` });
+    return res.json({ message: `${nickname} added to whitelist.` });
   } catch (err) {
     console.error("Authorize error:", err);
-    res.status(500).json({ message: "Error authorizing user" });
+    return res.status(500).json({ message: "Error authorizing user" });
   }
 }
 
-/* ========= RESET PASSWORD (Admin) ========= */
+/* ========= GET WHITELIST (Admin) ========= */
+export async function getWhitelist(req, res) {
+  try {
+    const list = await User.find({ authorized: true }).select("nickname");
+    return res.json(list);
+  } catch (err) {
+    console.error("Get whitelist error:", err);
+    return res.status(500).json({ message: "Failed to fetch whitelist" });
+  }
+}
+
+/* ========= REMOVE FROM WHITELIST (Admin) ========= */
+export async function removeFromWhitelist(req, res) {
+  try {
+    const { nickname } = req.params;
+    const user = await User.findOne({ nickname });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.authorized = false;
+    await user.save();
+    return res.json({ message: `${nickname} removed from whitelist.` });
+  } catch (err) {
+    console.error("Remove whitelist error:", err);
+    return res.status(500).json({ message: "Failed to remove from whitelist" });
+  }
+}
+
+/* ========= RESET PASSWORD (Admin) =========
+   NOTE: ta route peut être POST ou PUT selon ton routes/api.js, garde la cohérence */
 export async function resetPassword(req, res) {
   try {
     const { nickname, newPassword } = req.body;
-
     const user = await User.findOne({ nickname });
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -124,34 +137,34 @@ export async function resetPassword(req, res) {
     user.password = hashed;
     await user.save();
 
-    res.json({ message: `Password for ${nickname} has been reset.` });
+    return res.json({ message: `Password for ${nickname} has been reset.` });
   } catch (err) {
     console.error("Reset password error:", err);
-    res.status(500).json({ message: "Password reset failed" });
+    return res.status(500).json({ message: "Password reset failed" });
   }
 }
 
-/* ========= GET ALL USERS (Admin only) ========= */
+/* ========= GET ALL USERS (Admin) ========= */
 export async function getAllUsers(req, res) {
   try {
     const users = await User.find().select("-password");
-    res.json(users);
+    return res.json(users);
   } catch (err) {
     console.error("Get users error:", err);
-    res.status(500).json({ message: "Failed to fetch users" });
+    return res.status(500).json({ message: "Failed to fetch users" });
   }
 }
 
-/* ========= DELETE USER (Admin only) ========= */
+/* ========= DELETE USER (Admin) ========= */
 export async function deleteUser(req, res) {
   try {
     const { id } = req.params;
     const user = await User.findByIdAndDelete(id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    res.json({ message: `User ${user.nickname} deleted.` });
+    return res.json({ message: `User ${user.nickname} deleted.` });
   } catch (err) {
     console.error("Delete user error:", err);
-    res.status(500).json({ message: "Failed to delete user" });
+    return res.status(500).json({ message: "Failed to delete user" });
   }
 }
