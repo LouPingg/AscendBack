@@ -8,6 +8,7 @@ const albumSchema = new mongoose.Schema({
     required: true,
   },
   createdAt: { type: Date, default: Date.now },
+  coverUrl: { type: String }, // ✅ nouvelle propriété : image de couverture
 });
 
 export default mongoose.model("Album", albumSchema);
