@@ -6,14 +6,17 @@ import {
   updateEvent,
   deleteEvent,
 } from "../controllers/eventController.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { verifyToken, isAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+// 🔓 Public routes
 router.get("/", getAllEvents);
 router.get("/next7", getNext7DaysEvents);
-router.post("/", authMiddleware, createEvent);
-router.put("/:id", authMiddleware, updateEvent);
-router.delete("/:id", authMiddleware, deleteEvent);
+
+// 🔐 Protected routes
+router.post("/", verifyToken, createEvent);
+router.put("/:id", verifyToken, updateEvent);
+router.delete("/:id", verifyToken, deleteEvent);
 
 export default router;
