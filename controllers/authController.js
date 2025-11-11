@@ -73,3 +73,13 @@ export async function deleteUser(req, res) {
     res.status(500).json({ message: "Failed to delete user" });
   }
 }
+// === ADMIN: obtenir tous les utilisateurs ===
+export async function getAllUsers(req, res) {
+  try {
+    const users = await User.find().select("nickname role authorized");
+    res.json(users);
+  } catch (err) {
+    console.error("Get all users error:", err);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+}
