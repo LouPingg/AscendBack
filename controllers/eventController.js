@@ -41,7 +41,9 @@ export async function createEvent(req, res) {
 // === Récupérer tous les events ===
 export async function getAllEvents(req, res) {
   try {
-    const events = await Event.find().populate("createdBy", "nickname role");
+    const events = await Event.find()
+      .populate("createdBy", "nickname role")
+      .sort({ startAt: 1 }); // tri par date croissante
     res.json(events);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch events" });
