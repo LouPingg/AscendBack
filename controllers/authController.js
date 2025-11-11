@@ -73,6 +73,18 @@ export async function deleteUser(req, res) {
     res.status(500).json({ message: "Failed to delete user" });
   }
 }
+
+// === ADMIN: obtenir la whitelist (utilisateurs autorisés) ===
+export async function getWhitelist(req, res) {
+  try {
+    const list = await User.find({ authorized: true }).select("nickname");
+    res.json(list);
+  } catch (err) {
+    console.error("Get whitelist error:", err);
+    res.status(500).json({ message: "Failed to fetch whitelist" });
+  }
+}
+
 // === ADMIN: obtenir tous les utilisateurs ===
 export async function getAllUsers(req, res) {
   try {
