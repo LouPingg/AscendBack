@@ -33,16 +33,15 @@ export async function createEvent(req, res) {
 // === Récupérer tous les événements (public) ===
 export async function getAllEvents(req, res) {
   try {
-    const events = await Event.find()
-      .populate("createdBy", "nickname role")
-      .sort({ startAt: 1 });
+    const now = new Date();
+    const events = await Event.find({ endAt: { $gte: now } }).sort({
+      startAt: 1,
+    });
     res.json(events);
-  } catch (err) {
-    console.error("Get events error:", err);
+  } catch {
     res.status(500).json({ message: "Failed to fetch events" });
   }
 }
-
 // === Supprimer un événement (admin ou propriétaire) ===
 export async function deleteEvent(req, res) {
   try {
