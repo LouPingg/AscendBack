@@ -1,13 +1,12 @@
-import cloudinary from "../config/cloudinary.js";
 import Event from "../models/Event.js";
+import cloudinary from "../config/cloudinary.js";
 
-/* ========= Créer un événement ========= */
+// === Créer un événement ===
 export async function createEvent(req, res) {
   try {
     const { title, description, startAt, endAt } = req.body;
     let imageUrl = null;
 
-    // ✅ Upload image sur Cloudinary si présente
     if (req.file) {
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: "ascend-events",
@@ -21,6 +20,7 @@ export async function createEvent(req, res) {
       startAt,
       endAt,
       imageUrl,
+      createdBy: req.user._id, // 👈 on relie à l’utilisateur connecté
     });
 
     res.status(201).json(event);
@@ -30,10 +30,12 @@ export async function createEvent(req, res) {
   }
 }
 
-/* ========= Récupérer tous les événements ========= */
+// === Récupérer tous les événements (public) ===
 export async function getAllEvents(req, res) {
   try {
-    const events = await Event.find().sort({ startAt: 1 });
+    const events = await Event.find()
+      .populate("createdBy", "nickname role")
+      .sort({ startAt: 1 });
     res.json(events);
   } catch (err) {
     console.error("Get events error:", err);
@@ -41,18 +43,14 @@ export async function getAllEvents(req, res) {
   }
 }
 
-/* ========= Supprimer un événement ========= */
+// === Supprimer un événement (admin ou propriétaire) ===
 export async function deleteEvent(req, res) {
   try {
-    const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ message: "Event not found" });
-
-    // ✅ Supprime l’image Cloudinary si elle existe
+    const event = req.doc; // défini par le middleware isOwnerOrAdmin
     if (event.imageUrl) {
       const publicId = event.imageUrl.split("/").pop().split(".")[0];
       await cloudinary.uploader.destroy(`ascend-events/${publicId}`);
     }
-
     await event.deleteOne();
     res.json({ message: "Event deleted successfully" });
   } catch (err) {

@@ -1,20 +1,23 @@
 import express from "express";
 import multer from "multer";
-import { verifyToken, isAdmin } from "../middleware/authMiddleware.js";
+import { verifyToken, isOwnerOrAdmin } from "../middleware/authMiddleware.js";
 import {
   createEvent,
   getAllEvents,
   deleteEvent,
 } from "../controllers/eventController.js";
+import Event from "../models/Event.js";
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-/* ========= Routes publiques ========= */
+// Lecture publique
 router.get("/", getAllEvents);
 
-/* ========= Routes admin ========= */
-router.post("/", verifyToken, isAdmin, upload.single("image"), createEvent);
-router.delete("/:id", verifyToken, isAdmin, deleteEvent);
+// Création = user ou admin
+router.post("/", verifyToken, upload.single("image"), createEvent);
+
+// Suppression = propriétaire ou admin
+router.delete("/:id", verifyToken, isOwnerOrAdmin(Event), deleteEvent);
 
 export default router;

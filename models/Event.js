@@ -6,7 +6,7 @@ const eventSchema = new mongoose.Schema({
   startAt: Date,
   endAt: Date,
   imageUrl: String,
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 });
 
-eventSchema.index({ endAt: 1 }, { expireAfterSeconds: 0 });
 export default mongoose.model("Event", eventSchema);
