@@ -5,8 +5,8 @@ import {
   createAlbum,
   getAllAlbums,
   deleteAlbum,
-  uploadPhoto,
-  getPhotosByAlbum,
+  addPhoto,
+  getPhotos,
   deletePhoto,
 } from "../controllers/galleryController.js";
 
@@ -19,8 +19,8 @@ router.post("/albums", verifyToken, upload.single("image"), createAlbum);
 router.delete("/albums/:id", verifyToken, deleteAlbum);
 
 // Photos
-router.get("/photos/:albumId", getPhotosByAlbum);
-router.post("/photos", verifyToken, upload.single("image"), uploadPhoto);
+router.get("/photos/:albumId", getPhotos);
+router.post("/photos/:albumId", verifyToken, upload.single("image"), addPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);
 
 export default router;
