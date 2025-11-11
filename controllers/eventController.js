@@ -14,10 +14,9 @@ cloudinary.v2.config({
 // === Créer un event avec upload image ===
 export async function createEvent(req, res) {
   try {
-    const { title, description, date } = req.body;
+    const { title, description, startAt, endAt } = req.body;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // Upload Cloudinary
     const result = await cloudinary.v2.uploader.upload(req.file.path, {
       folder: "ascend-events",
     });
@@ -25,7 +24,8 @@ export async function createEvent(req, res) {
     const event = await Event.create({
       title,
       description,
-      date,
+      startAt: new Date(startAt),
+      endAt: new Date(endAt),
       imageUrl: result.secure_url,
       publicId: result.public_id,
       createdBy: req.user.userId,
