@@ -6,7 +6,22 @@ import cloudinary from "../config/cloudinary.js";
 export async function createAlbum(req, res) {
   try {
     const { title } = req.body;
-    const album = await Album.create({ title, createdBy: req.user._id });
+    let coverUrl = null;
+
+    // Si une image est envoyée avec la création
+    if (req.file) {
+      const up = await cloudinary.uploader.upload(req.file.path, {
+        folder: "ascend-gallery",
+      });
+      coverUrl = up.secure_url;
+    }
+
+    const album = await Album.create({
+      title,
+      coverUrl,
+      createdBy: req.user._id,
+    });
+
     res.status(201).json(album);
   } catch (err) {
     console.error("Create album error:", err);

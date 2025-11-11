@@ -15,7 +15,7 @@ const upload = multer({ dest: "uploads/" });
 
 // Albums
 router.get("/albums", getAllAlbums);
-router.post("/albums", verifyToken, createAlbum);
+router.post("/albums", verifyToken, upload.single("image"), createAlbum);
 router.delete("/albums/:id", verifyToken, deleteAlbum);
 
 // Photos
