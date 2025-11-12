@@ -12,7 +12,9 @@ cloudinary.config({
 export async function createAlbum(req, res) {
   try {
     const { title } = req.body;
-    const createdBy = req.user?.userId || null;
+    const createdBy = req.user?.userId;
+    if (!createdBy)
+      return res.status(401).json({ message: "Authentication required" });
 
     let coverUrl = null;
     let publicId = null;
@@ -56,11 +58,9 @@ export async function deleteAlbum(req, res) {
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: "Album not found" });
 
-    // Supprime la cover
     if (album.coverPublicId)
       await cloudinary.uploader.destroy(album.coverPublicId);
 
-    // Supprime toutes les photos associées
     const photos = await Photo.find({ albumId: album._id });
     for (const p of photos) await cloudinary.uploader.destroy(p.publicId);
     await Photo.deleteMany({ albumId: album._id });
@@ -77,7 +77,9 @@ export async function deleteAlbum(req, res) {
 export async function addPhoto(req, res) {
   try {
     const { albumId } = req.params;
-    const uploaderId = req.user?.userId;
+    const createdBy = req.user?.userId;
+    if (!createdBy)
+      return res.status(401).json({ message: "Authentication required" });
 
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "ascend-gallery",
@@ -87,7 +89,7 @@ export async function addPhoto(req, res) {
       albumId,
       imageUrl: result.secure_url,
       publicId: result.public_id,
-      createdBy: uploaderId,
+      createdBy,
     });
 
     // Si l’album n’a pas encore de cover → cette photo devient la cover
