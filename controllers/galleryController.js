@@ -110,6 +110,7 @@ export async function addPhoto(req, res) {
       createdBy,
     });
 
+    // ✅ Si l’album n’a pas encore de cover, on utilise celle-ci
     const album = await Album.findById(albumId);
     if (album && !album.coverUrl) {
       album.coverUrl = result.secure_url;
@@ -121,6 +122,20 @@ export async function addPhoto(req, res) {
   } catch (err) {
     console.error("❌ Add photo error:", err);
     res.status(500).json({ message: "Failed to upload photo" });
+  }
+}
+
+// === Récupérer les photos d’un album ===
+export async function getPhotos(req, res) {
+  try {
+    const photos = await Photo.find({ albumId: req.params.albumId }).populate(
+      "createdBy",
+      "nickname"
+    );
+    res.json(photos);
+  } catch (err) {
+    console.error("❌ Get photos error:", err);
+    res.status(500).json({ message: "Failed to fetch photos" });
   }
 }
 
