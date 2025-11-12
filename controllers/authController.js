@@ -37,7 +37,14 @@ export async function login(req, res) {
       process.env.JWT_SECRET,
       { expiresIn: "4h" }
     );
-    res.json({ token, nickname: user.nickname, role: user.role });
+
+    // ✅ Renvoie maintenant l'ID du user
+    res.json({
+      token,
+      nickname: user.nickname,
+      role: user.role,
+      _id: user._id,
+    });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Login failed" });

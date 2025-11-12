@@ -36,7 +36,7 @@ export async function createAlbum(req, res) {
       createdBy,
     });
 
-    // ✅ Si une image a été fournie, on l’ajoute aussi comme photo
+    // ✅ ajoute aussi la cover comme photo
     if (req.file && coverUrl && publicId) {
       await Photo.create({
         albumId: album._id,
@@ -64,7 +64,7 @@ export async function getAllAlbums(req, res) {
   }
 }
 
-// === Supprimer un album et ses photos ===
+// === Supprimer un album ===
 export async function deleteAlbum(req, res) {
   try {
     const album = await Album.findById(req.params.id);
@@ -110,7 +110,6 @@ export async function addPhoto(req, res) {
       createdBy,
     });
 
-    // ✅ Si l’album n’a pas encore de cover, utiliser cette photo
     const album = await Album.findById(albumId);
     if (album && !album.coverUrl) {
       album.coverUrl = result.secure_url;
@@ -122,20 +121,6 @@ export async function addPhoto(req, res) {
   } catch (err) {
     console.error("❌ Add photo error:", err);
     res.status(500).json({ message: "Failed to upload photo" });
-  }
-}
-
-// === Récupérer les photos ===
-export async function getPhotos(req, res) {
-  try {
-    const photos = await Photo.find({ albumId: req.params.albumId }).populate(
-      "createdBy",
-      "nickname"
-    );
-    res.json(photos);
-  } catch (err) {
-    console.error("❌ Get photos error:", err);
-    res.status(500).json({ message: "Failed to fetch photos" });
   }
 }
 
@@ -151,6 +136,23 @@ export async function deletePhoto(req, res) {
     }
 
     await cloudinary.uploader.destroy(photo.publicId);
+
+    const album = await Album.findById(photo.albumId);
+    if (album && album.coverPublicId === photo.publicId) {
+      const nextPhoto = await Photo.findOne({
+        albumId: album._id,
+        _id: { $ne: photo._id },
+      });
+      if (nextPhoto) {
+        album.coverUrl = nextPhoto.imageUrl;
+        album.coverPublicId = nextPhoto.publicId;
+      } else {
+        album.coverUrl = null;
+        album.coverPublicId = null;
+      }
+      await album.save();
+    }
+
     await photo.deleteOne();
     res.json({ message: "Photo deleted" });
   } catch (err) {
