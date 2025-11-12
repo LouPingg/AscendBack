@@ -1,4 +1,3 @@
-// controllers/galleryController.js
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import Album from "../models/Album.js";
@@ -36,6 +35,16 @@ export async function createAlbum(req, res) {
       coverPublicId: publicId,
       createdBy,
     });
+
+    // ✅ Si une image a été fournie, on l’ajoute aussi comme vraie photo
+    if (req.file && coverUrl && publicId) {
+      await Photo.create({
+        albumId: album._id,
+        imageUrl: coverUrl,
+        publicId,
+        createdBy,
+      });
+    }
 
     res.status(201).json(album);
   } catch (err) {
@@ -96,7 +105,7 @@ export async function addPhoto(req, res) {
       createdBy,
     });
 
-    // ✅ Si aucune cover, définir celle-ci
+    // ✅ Si l’album n’a pas encore de cover, utiliser cette photo
     const album = await Album.findById(albumId);
     if (album && !album.coverUrl) {
       album.coverUrl = result.secure_url;
