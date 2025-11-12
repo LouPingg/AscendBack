@@ -5,8 +5,16 @@ import cloudinary from "../config/cloudinary.js";
 export async function createEvent(req, res) {
   try {
     const { title, description, startAt, endAt } = req.body;
-    let imageUrl = null;
+    const now = new Date();
 
+    // 🔒 Vérification : l'événement doit se terminer après "maintenant"
+    if (new Date(endAt) <= now) {
+      return res.status(400).json({
+        message: "End date must be in the future.",
+      });
+    }
+
+    let imageUrl = null;
     if (req.file) {
       const up = await cloudinary.uploader.upload(req.file.path, {
         folder: "ascend-events",
@@ -20,7 +28,7 @@ export async function createEvent(req, res) {
       startAt,
       endAt,
       imageUrl,
-      createdBy: req.user.userId,
+      createdBy: req.user._id,
     });
 
     res.status(201).json(event);
@@ -30,10 +38,11 @@ export async function createEvent(req, res) {
   }
 }
 
-/* Get all events (past + future) */
+/* only future or ongoing events */
 export async function getAllEvents(req, res) {
   try {
-    const events = await Event.find()
+    const now = new Date();
+    const events = await Event.find({ endAt: { $gte: now } })
       .populate("createdBy", "nickname role")
       .sort({ startAt: 1 });
     res.json(events);
@@ -49,10 +58,7 @@ export async function deleteEvent(req, res) {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    const isOwner =
-      event.createdBy?.toString() === req.user.userId ||
-      event.createdBy?.toString() === req.user._id?.toString();
-
+    const isOwner = event.createdBy?.toString() === req.user._id.toString();
     if (!isOwner && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
     }
