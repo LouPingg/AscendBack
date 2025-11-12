@@ -1,4 +1,3 @@
-// controllers/eventController.js
 import Event from "../models/Event.js";
 import cloudinary from "../config/cloudinary.js";
 
@@ -7,12 +6,14 @@ export async function createEvent(req, res) {
   try {
     const { title, description, startAt, endAt } = req.body;
     let imageUrl = null;
+
     if (req.file) {
       const up = await cloudinary.uploader.upload(req.file.path, {
         folder: "ascend-events",
       });
       imageUrl = up.secure_url;
     }
+
     const event = await Event.create({
       title,
       description,
@@ -21,6 +22,7 @@ export async function createEvent(req, res) {
       imageUrl,
       createdBy: req.user.userId,
     });
+
     res.status(201).json(event);
   } catch (err) {
     console.error("Create event error:", err);
@@ -28,7 +30,7 @@ export async function createEvent(req, res) {
   }
 }
 
-/* All events, sorted */
+/* Get all events (past + future) */
 export async function getAllEvents(req, res) {
   try {
     const events = await Event.find()
@@ -41,13 +43,16 @@ export async function getAllEvents(req, res) {
   }
 }
 
-/* Delete */
+/* Delete (owner or admin) */
 export async function deleteEvent(req, res) {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    const isOwner = event.createdBy?.toString() === req.user.userId;
+    const isOwner =
+      event.createdBy?.toString() === req.user.userId ||
+      event.createdBy?.toString() === req.user._id?.toString();
+
     if (!isOwner && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
     }

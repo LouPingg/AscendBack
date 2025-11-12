@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 
 const eventSchema = new mongoose.Schema({
-  title: String,
+  title: { type: String, required: true },
   description: String,
-  startAt: Date,
-  endAt: Date,
+  startAt: { type: Date, required: true },
+  endAt: {
+    type: Date,
+    required: true,
+    index: { expires: 0 }, // ✅ TTL index : suppression automatique à la fin
+  },
   imageUrl: String,
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 });

@@ -36,7 +36,7 @@ export async function createAlbum(req, res) {
       createdBy,
     });
 
-    // ✅ Si une image a été fournie, on l’ajoute aussi comme vraie photo
+    // ✅ Si une image a été fournie, on l’ajoute aussi comme photo
     if (req.file && coverUrl && publicId) {
       await Photo.create({
         albumId: album._id,
@@ -69,6 +69,11 @@ export async function deleteAlbum(req, res) {
   try {
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: "Album not found" });
+
+    const isOwner = album.createdBy?.toString() === req.user.userId;
+    if (!isOwner && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     if (album.coverPublicId)
       await cloudinary.uploader.destroy(album.coverPublicId);
@@ -139,6 +144,11 @@ export async function deletePhoto(req, res) {
   try {
     const photo = await Photo.findById(req.params.id);
     if (!photo) return res.status(404).json({ message: "Photo not found" });
+
+    const isOwner = photo.createdBy?.toString() === req.user.userId;
+    if (!isOwner && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
     await cloudinary.uploader.destroy(photo.publicId);
     await photo.deleteOne();
