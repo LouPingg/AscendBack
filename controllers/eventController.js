@@ -27,7 +27,7 @@ export async function createEvent(req, res) {
   }
 }
 
-/* Read (public) – only future events, sorted ascending */
+/*  only future events, sorted  */
 export async function getAllEvents(req, res) {
   try {
     const now = new Date();
@@ -41,7 +41,7 @@ export async function getAllEvents(req, res) {
   }
 }
 
-/* Delete (owner or admin) – check inside */
+/* Delete (owner or admin) – */
 export async function deleteEvent(req, res) {
   try {
     const event = await Event.findById(req.params.id);

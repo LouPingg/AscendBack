@@ -30,7 +30,7 @@ export async function createAlbum(req, res) {
 
     res.status(201).json(album);
   } catch (err) {
-    console.error("Create album error:", err);
+    console.error("❌ Create album error:", err);
     res.status(500).json({ message: "Failed to create album" });
   }
 }
@@ -41,7 +41,7 @@ export async function getAllAlbums(req, res) {
     const albums = await Album.find().populate("createdBy", "nickname role");
     res.json(albums);
   } catch (err) {
-    console.error("Fetch albums error:", err);
+    console.error("❌ Fetch albums error:", err);
     res.status(500).json({ message: "Failed to fetch albums" });
   }
 }
@@ -52,7 +52,6 @@ export async function deleteAlbum(req, res) {
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: "Album not found" });
 
-    // Supprime toutes les photos associées dans Cloudinary
     const photos = await Photo.find({ albumId: album._id });
     for (const p of photos) await cloudinary.uploader.destroy(p.publicId);
 
@@ -61,15 +60,20 @@ export async function deleteAlbum(req, res) {
 
     res.json({ message: "Album deleted" });
   } catch (err) {
-    console.error("Delete album error:", err);
+    console.error("❌ Delete album error:", err);
     res.status(500).json({ message: "Failed to delete album" });
   }
 }
 
-// === Ajouter une photo dans un album ===
+// === Ajouter une photo à un album ===
 export async function addPhoto(req, res) {
   try {
     const { albumId } = req.params;
+
+    // Vérifie que l’album existe
+    const album = await Album.findById(albumId);
+    if (!album) return res.status(404).json({ message: "Album not found" });
+
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "ascend-gallery",
     });
@@ -82,15 +86,15 @@ export async function addPhoto(req, res) {
     });
 
     // 💡 Si c’est la première photo => devient la cover
-    const album = await Album.findById(albumId);
-    if (!album.coverUrl) {
+    const existingPhotos = await Photo.countDocuments({ albumId });
+    if (existingPhotos === 1) {
       album.coverUrl = result.secure_url;
       await album.save();
     }
 
     res.status(201).json(photo);
   } catch (err) {
-    console.error("Add photo error:", err);
+    console.error("❌ Add photo error:", err);
     res.status(500).json({ message: "Failed to upload photo" });
   }
 }
@@ -101,7 +105,7 @@ export async function getPhotos(req, res) {
     const photos = await Photo.find({ albumId: req.params.albumId });
     res.json(photos);
   } catch (err) {
-    console.error("Get photos error:", err);
+    console.error("❌ Get photos error:", err);
     res.status(500).json({ message: "Failed to fetch photos" });
   }
 }
@@ -117,7 +121,7 @@ export async function deletePhoto(req, res) {
 
     res.json({ message: "Photo deleted" });
   } catch (err) {
-    console.error("Delete photo error:", err);
+    console.error("❌ Delete photo error:", err);
     res.status(500).json({ message: "Failed to delete photo" });
   }
 }
