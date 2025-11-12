@@ -11,17 +11,15 @@ import {
 } from "../controllers/galleryController.js";
 
 const router = express.Router();
-
-// Multer (stockage temporaire)
 const upload = multer({ dest: "uploads/" });
 
-// === ALBUMS ===
+// === Albums ===
 router.get("/albums", getAllAlbums);
 router.post("/albums", verifyToken, upload.single("image"), createAlbum);
 router.delete("/albums/:id", verifyToken, deleteAlbum);
 
-// === PHOTOS ===
-router.get("/albums/:albumId/photos", getPhotos); // ✅ Correction route
+// === Photos ===
+router.get("/albums/:albumId/photos", getPhotos);
 router.post(
   "/albums/:albumId/photos",
   verifyToken,
