@@ -145,7 +145,10 @@ export async function deletePhoto(req, res) {
     const photo = await Photo.findById(req.params.id);
     if (!photo) return res.status(404).json({ message: "Photo not found" });
 
-    const isOwner = photo.createdBy?.toString() === req.user.userId;
+    const isOwner =
+      photo.createdBy?.toString() === req.user.userId ||
+      photo.createdBy?.toString() === req.user._id?.toString();
+
     if (!isOwner && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied" });
     }
