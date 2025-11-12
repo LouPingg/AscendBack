@@ -1,12 +1,9 @@
+// middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 export async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
-
-  // Debug temporaire (tu peux le retirer après test)
-  console.log("🔐 Incoming Auth header:", authHeader);
-
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "No token provided" });
   }
@@ -18,14 +15,18 @@ export async function verifyToken(req, res, next) {
     const user = await User.findById(decoded.userId);
 
     if (!user) {
-      console.warn("⚠️ Token decoded but user not found in DB");
       return res.status(401).json({ message: "Invalid token" });
     }
 
-    req.user = user; // tout le user dispo dans req.user
+    // 🔧 Uniformisation : ajout des deux formats
+    req.user = {
+      ...user.toObject(),
+      userId: user._id.toString(),
+    };
+
     next();
   } catch (err) {
-    console.error("❌ JWT verification failed:", err.message);
+    console.error("JWT verification failed:", err.message);
     res.status(403).json({ message: "Invalid or expired token" });
   }
 }

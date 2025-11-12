@@ -1,4 +1,6 @@
+// controllers/galleryController.js
 import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
 import Album from "../models/Album.js";
 import Photo from "../models/Photo.js";
 
@@ -8,7 +10,7 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-// === Créer un album (avec ou sans image de couverture) ===
+// === Créer un album ===
 export async function createAlbum(req, res) {
   try {
     const { title } = req.body;
@@ -25,6 +27,7 @@ export async function createAlbum(req, res) {
       });
       coverUrl = result.secure_url;
       publicId = result.public_id;
+      await fs.promises.unlink(req.file.path);
     }
 
     const album = await Album.create({
@@ -73,7 +76,7 @@ export async function deleteAlbum(req, res) {
   }
 }
 
-// === Ajouter une photo dans un album ===
+// === Ajouter une photo ===
 export async function addPhoto(req, res) {
   try {
     const { albumId } = req.params;
@@ -84,6 +87,7 @@ export async function addPhoto(req, res) {
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "ascend-gallery",
     });
+    await fs.promises.unlink(req.file.path);
 
     const photo = await Photo.create({
       albumId,
@@ -92,7 +96,7 @@ export async function addPhoto(req, res) {
       createdBy,
     });
 
-    // Si l’album n’a pas encore de cover → cette photo devient la cover
+    // ✅ Si aucune cover, définir celle-ci
     const album = await Album.findById(albumId);
     if (album && !album.coverUrl) {
       album.coverUrl = result.secure_url;
@@ -107,7 +111,7 @@ export async function addPhoto(req, res) {
   }
 }
 
-// === Récupérer les photos d’un album ===
+// === Récupérer les photos ===
 export async function getPhotos(req, res) {
   try {
     const photos = await Photo.find({ albumId: req.params.albumId }).populate(
@@ -129,7 +133,6 @@ export async function deletePhoto(req, res) {
 
     await cloudinary.uploader.destroy(photo.publicId);
     await photo.deleteOne();
-
     res.json({ message: "Photo deleted" });
   } catch (err) {
     console.error("❌ Delete photo error:", err);
