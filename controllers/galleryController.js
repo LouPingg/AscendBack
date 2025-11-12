@@ -8,24 +8,28 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-// === Créer un album (avec ou sans photo de couverture) ===
+// === Créer un album (avec ou sans image de couverture) ===
 export async function createAlbum(req, res) {
   try {
     const { title } = req.body;
-    let coverUrl = null;
+    const createdBy = req.user?.userId || null;
 
-    // Si une image est envoyée à la création
+    let coverUrl = null;
+    let publicId = null;
+
     if (req.file) {
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: "ascend-gallery",
       });
       coverUrl = result.secure_url;
+      publicId = result.public_id;
     }
 
     const album = await Album.create({
       title,
       coverUrl,
-      createdBy: req.user.userId,
+      coverPublicId: publicId,
+      createdBy,
     });
 
     res.status(201).json(album);
@@ -46,18 +50,22 @@ export async function getAllAlbums(req, res) {
   }
 }
 
-// === Supprimer un album ===
+// === Supprimer un album et ses photos ===
 export async function deleteAlbum(req, res) {
   try {
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: "Album not found" });
 
+    // Supprime la cover
+    if (album.coverPublicId)
+      await cloudinary.uploader.destroy(album.coverPublicId);
+
+    // Supprime toutes les photos associées
     const photos = await Photo.find({ albumId: album._id });
     for (const p of photos) await cloudinary.uploader.destroy(p.publicId);
-
     await Photo.deleteMany({ albumId: album._id });
-    await album.deleteOne();
 
+    await album.deleteOne();
     res.json({ message: "Album deleted" });
   } catch (err) {
     console.error("❌ Delete album error:", err);
@@ -65,14 +73,11 @@ export async function deleteAlbum(req, res) {
   }
 }
 
-// === Ajouter une photo à un album ===
+// === Ajouter une photo dans un album ===
 export async function addPhoto(req, res) {
   try {
     const { albumId } = req.params;
-
-    // Vérifie que l’album existe
-    const album = await Album.findById(albumId);
-    if (!album) return res.status(404).json({ message: "Album not found" });
+    const uploaderId = req.user?.userId;
 
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "ascend-gallery",
@@ -82,13 +87,14 @@ export async function addPhoto(req, res) {
       albumId,
       imageUrl: result.secure_url,
       publicId: result.public_id,
-      createdBy: req.user.userId,
+      createdBy: uploaderId,
     });
 
-    // 💡 Si c’est la première photo => devient la cover
-    const existingPhotos = await Photo.countDocuments({ albumId });
-    if (existingPhotos === 1) {
+    // Si l’album n’a pas encore de cover → cette photo devient la cover
+    const album = await Album.findById(albumId);
+    if (album && !album.coverUrl) {
       album.coverUrl = result.secure_url;
+      album.coverPublicId = result.public_id;
       await album.save();
     }
 
@@ -102,7 +108,10 @@ export async function addPhoto(req, res) {
 // === Récupérer les photos d’un album ===
 export async function getPhotos(req, res) {
   try {
-    const photos = await Photo.find({ albumId: req.params.albumId });
+    const photos = await Photo.find({ albumId: req.params.albumId }).populate(
+      "createdBy",
+      "nickname"
+    );
     res.json(photos);
   } catch (err) {
     console.error("❌ Get photos error:", err);
