@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
+import propertyRoutes from "./routes/propertyRoutes.js";
 
 // === Import routes ===
 import authRoutes from "./routes/authRoutes.js";
@@ -49,6 +50,7 @@ app.get("/", (_, res) => res.send("✅ Ascend backend running!"));
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/gallery", galleryRoutes);
+app.use("/api/properties", propertyRoutes);
 
 // === Start server ===
 const PORT = process.env.PORT || 5000;
