@@ -6,6 +6,7 @@ import {
   createProperty,
   deleteProperty,
   getPropertyTags,
+  updateProperty,
 } from "../controllers/propertyController.js";
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.get("/", getAllProperties);
 router.get("/tags", getPropertyTags);
 
 router.post("/", verifyToken, upload.single("image"), createProperty);
+router.patch("/:id", verifyToken, upload.single("image"), updateProperty);
 router.delete("/:id", verifyToken, deleteProperty);
 
 export default router;
